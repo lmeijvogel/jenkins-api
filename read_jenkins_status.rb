@@ -10,15 +10,26 @@ def hostname
   ENV.fetch("JENKINS_HOSTNAME").strip
 end
 
+def interesting_builds
+  ENV.fetch("JENKINS_BUILDS").split(",").map(&:strip)
+end
+
 def main
-   # Heavy request,  but it collects all build statuses as well
-  frontend_uri = "https://#{hostname}/job/Frontend/api/json?depth=1"
+  results = interesting_builds.map do |build_name|
+    frontend_uri = "https://#{hostname}/job/#{build_name}/api/json"
 
-  response = authenticated_request(frontend_uri)
+    response = authenticated_request(frontend_uri)
 
-  builds = response["builds"]
+    builds = response["builds"]
 
-  p builds.last
+    latest_build = builds.sort_by { |build| build["number"] }.last
+
+    [build_name, authenticated_request("#{latest_build["url"]}/api/json")]
+  end
+
+  results.each do |build_name, response|
+    puts "#{build_name} -> #{response["result"]}"
+  end
 end
 
 def authenticated_request(uri)
