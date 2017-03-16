@@ -14,6 +14,10 @@ def interesting_builds
   ENV.fetch("JENKINS_BUILDS").split(",").map(&:strip)
 end
 
+def hostname
+  ENV.fetch("JENKINS_HOSTNAME").strip
+end
+
 def main
   results = interesting_builds.map do |build_name|
     frontend_uri = "https://#{hostname}/job/#{build_name}/api/json"
