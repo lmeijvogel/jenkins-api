@@ -6,43 +6,47 @@ require 'json'
 
 Dotenv.load
 
-def hostname
-  ENV.fetch("JENKINS_HOSTNAME").strip
-end
+class Main
+  def main
+    interesting_builds.map do |build_name|
+      frontend_uri = "https://#{hostname}/job/#{build_name}/api/json"
 
-def interesting_builds
-  ENV.fetch("JENKINS_BUILDS").split(",").map(&:strip)
-end
+      response = authenticated_request(frontend_uri)
 
-def hostname
-  ENV.fetch("JENKINS_HOSTNAME").strip
-end
+      builds = response["builds"]
 
-def main
-  results = interesting_builds.map do |build_name|
-    frontend_uri = "https://#{hostname}/job/#{build_name}/api/json"
+      latest_build = builds.sort_by { |build| build["number"] }.last
 
-    response = authenticated_request(frontend_uri)
-
-    builds = response["builds"]
-
-    latest_build = builds.sort_by { |build| build["number"] }.last
-
-    [build_name, authenticated_request("#{latest_build["url"]}/api/json")]
+      [build_name, authenticated_request("#{latest_build["url"]}/api/json")]
+    end
   end
 
-  results.each do |build_name, response|
-    puts "#{build_name} -> #{response["result"]}"
+
+
+  private
+
+  def authenticated_request(uri)
+    response = HTTParty.get(uri, basic_auth: {
+      username: ENV.fetch("JENKINS_USER"),
+      password: ENV.fetch("JENKINS_TOKEN")
+    })
+
+    JSON.parse(response.body)
+  end
+
+  def interesting_builds
+    ENV.fetch("JENKINS_BUILDS").split(",").map(&:strip)
+  end
+
+  def hostname
+    ENV.fetch("JENKINS_HOSTNAME").strip
   end
 end
 
-def authenticated_request(uri)
-  response = HTTParty.get(uri, basic_auth: {
-    username: ENV.fetch("JENKINS_USER"),
-    password: ENV.fetch("JENKINS_TOKEN")
-  })
 
-  JSON.parse(response.body)
+puts "Interesting builds - retrieved per build"
+interesting_builds = Main.new.main.map do |build_name, response|
+  "#{build_name} -> #{response["result"]}"
 end
 
-main
+puts interesting_builds
