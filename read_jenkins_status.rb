@@ -3,6 +3,7 @@
 require 'httparty'
 require 'dotenv'
 require 'json'
+require_relative 'job'
 
 Dotenv.load
 
@@ -21,7 +22,17 @@ class Main
     end
   end
 
+  def all_builds
+    frontend_uri = "https://#{hostname}/api/json"
 
+    response = authenticated_request(frontend_uri)
+
+    jobs = response['jobs'].map do |job|
+      Job.new(job["name"], job["color"])
+    end
+
+    jobs.to_json
+  end
 
   private
 
@@ -43,7 +54,10 @@ class Main
   end
 end
 
+puts "All builds"
+puts Main.new.all_builds
 
+puts
 puts "Interesting builds - retrieved per build"
 interesting_builds = Main.new.main.map do |build_name, response|
   "#{build_name} -> #{response["result"]}"
